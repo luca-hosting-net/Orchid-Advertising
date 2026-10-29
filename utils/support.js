@@ -208,7 +208,7 @@ async function createTicket(interaction, reason, categoryId = SUPPORT_CATEGORY_I
     reason: `Support ticket opened by ${interaction.user.tag}`,
   });
 
-  const roleTag = `<@&${executiveRole.id}>\n`;
+  const roleTag = `<@&${supportRole.id}>\n`;
   const createdAt = `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:D>`;
   const ticketPanel = new ContainerBuilder()
     .setAccentColor(0x1f8b75)
@@ -243,7 +243,7 @@ async function createTicket(interaction, reason, categoryId = SUPPORT_CATEGORY_I
       files: [new AttachmentBuilder(DASHBOARD_BANNER, { name: 'orchid-dashboard.png' })],
       components: [ticketPanel],
       flags: MessageFlags.IsComponentsV2,
-      allowedMentions: { roles: [executiveRole.id], users: [] },
+      allowedMentions: { roles: [supportRole.id], users: [] },
     });
   } catch (error) {
     await channel.delete('Ticket panel could not be created');
