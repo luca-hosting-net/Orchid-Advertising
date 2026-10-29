@@ -26,7 +26,7 @@ function makeDashboardContainer() {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         '# Orchid Customs\n' +
-        'Welcome to **Pulse Customs**, creating a pulse to your custom creations. We were founded on **03 July 2024** and aim to provide high-quality, affordable products for all clients. Not only orders, but fun events and giveaways for all of our community.\n\n' +
+        'Welcome to **Orchid Customs**, creating a immense experience to your custom creations. We were founded on **August 26th 2026** and aim to provide high-quality, affordable products for all clients. Not only orders, but fun events and giveaways for all of our community.\n\n' +
         'Explore our Guidelines and Terms Of Service.',
       ),
     );
