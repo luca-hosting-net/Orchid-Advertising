@@ -329,7 +329,9 @@ async function handle(interaction) {
       }
     }
 
-    if (interaction.customId.startsWith('ticket:claim:') || interaction.customId.startsWith('ticket:close:')) {
+    if (interaction.customId.startsWith('ticket:claim:')
+      || interaction.customId.startsWith('ticket:close:')
+      || interaction.customId.startsWith('ticket:close-request:')) {
       return handleTicket(interaction);
     }
   }

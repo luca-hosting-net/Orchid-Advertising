@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { closeTicket } = require('../utils/tickets');
+const { requestCloseTicket } = require('../utils/tickets');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -11,6 +11,6 @@ module.exports = {
       .setRequired(true)
       .setMaxLength(500)),
   async execute(interaction) {
-    return closeTicket(interaction, interaction.options.getString('reason'));
+    return requestCloseTicket(interaction, interaction.options.getString('reason'));
   },
 };
