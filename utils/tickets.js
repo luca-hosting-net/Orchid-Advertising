@@ -60,16 +60,6 @@ function cleanupClosedTickets(client) {
   }
 }
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  })[character]);
-}
-
 async function createTranscript(channel) {
   const messages = [];
   let before;
@@ -84,22 +74,30 @@ async function createTranscript(channel) {
 
   const sorted = messages.slice(0, maxMessages).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
   const transcriptMessages = sorted.map((message) => {
-    const attachments = [...message.attachments.values()].map((attachment) =>
-      `<li><a href="${escapeHtml(attachment.url)}">${escapeHtml(attachment.name || 'attachment')}</a></li>`,
-    ).join('');
-    const embeds = message.embeds.map((embed) => {
-      const text = [embed.title, embed.description].filter(Boolean).join('\n');
-      return text ? `<blockquote>${escapeHtml(text)}</blockquote>` : '';
-    }).join('');
-    const contentText = message.content || '';
-    const content = contentText
-      ? `<div class="content">${escapeHtml(contentText.slice(0, 1_000))}${contentText.length > 1_000 ? '<br><em>[Message text truncated]</em>' : ''}</div>`
-      : '';
-    return `<article><header><strong>${escapeHtml(message.author.tag)}</strong><time>${new Date(message.createdTimestamp).toISOString()}</time></header>${content}${embeds}${attachments ? `<ul>${attachments}</ul>` : ''}</article>`;
-  }).join('\n');
-  const truncated = messages.length >= maxMessages ? '<p class="note">Transcript limited to the latest 3,000 messages.</p>' : '';
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Transcript: ${escapeHtml(channel.name)}</title><style>body{font:15px system-ui,sans-serif;background:#17151a;color:#eee;margin:0;padding:24px}.wrap{max-width:900px;margin:auto}h1{color:#e5b2f1}article{background:#242127;border-radius:8px;padding:14px;margin:12px 0;overflow-wrap:anywhere}header{display:flex;justify-content:space-between;gap:16px;color:#d9b8e3}time{font-size:12px;color:#aaa}.content{white-space:pre-wrap;margin-top:8px}a{color:#9bbcff}blockquote{border-left:3px solid #b320d1;margin:8px 0;padding-left:12px;white-space:pre-wrap}.note{color:#ffc66d}</style></head><body><main class="wrap"><h1>Orchid Customs — ${escapeHtml(channel.name)}</h1>${truncated}${transcriptMessages || '<p>No messages were available for this transcript.</p>'}</main></body></html>`;
-  return Buffer.from(html, 'utf8');
+    const lines = [
+      `[${new Date(message.createdTimestamp).toISOString()}] ${message.author.tag} (${message.author.id})`,
+      (message.content || '[No text content]').slice(0, 1_000),
+    ];
+    if (message.content?.length > 1_000) lines.push('[Message text truncated]');
+    for (const attachment of message.attachments.values()) {
+      lines.push(`Attachment: ${attachment.name || 'file'} — ${attachment.url}`);
+    }
+    for (const embed of message.embeds) {
+      const embedText = [embed.title, embed.description].filter(Boolean).join('\n');
+      if (embedText) lines.push(`Embed: ${embedText}`);
+    }
+    return lines.join('\n');
+  }).join('\n\n────────────────────────────────────────\n\n');
+  const truncated = messages.length >= maxMessages ? '\n\n[Transcript limited to the latest 3,000 messages.]' : '';
+  const transcript = [
+    'ORCHID CUSTOMS — TICKET TRANSCRIPT',
+    `Channel: ${channel.name} (${channel.id})`,
+    `Generated: ${new Date().toISOString()}`,
+    '',
+    transcriptMessages || 'No messages were available for this transcript.',
+    truncated,
+  ].join('\n');
+  return Buffer.from(transcript, 'utf8');
 }
 
 async function sendClosureReport(interaction, ticket, closeReason, originalChannelName) {
@@ -110,7 +108,7 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
 
   const channel = interaction.channel;
   const transcript = await createTranscript(channel);
-  const transcriptName = `transcript-${channel.name.replace(/[^a-z0-9-]/gi, '-').slice(0, 80)}.html`;
+  const transcriptName = `transcript-${channel.name.replace(/[^a-z0-9-]/gi, '-').slice(0, 80)}.txt`;
   const closedAt = Math.floor(Date.now() / 1000);
   const embed = new EmbedBuilder()
     .setColor(0x49b8e9)
@@ -129,10 +127,12 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
 
   await logChannel.send({
     embeds: [embed],
-    files: [
-      new AttachmentBuilder(ASSISTANCE_BANNER, { name: 'assistance.png' }),
-      new AttachmentBuilder(transcript, { name: transcriptName }),
-    ],
+    files: [new AttachmentBuilder(ASSISTANCE_BANNER, { name: 'assistance.png' })],
+    allowedMentions: { parse: [] },
+  });
+  await logChannel.send({
+    content: `📄 Transcript for **${originalChannelName}** is attached below.`,
+    files: [new AttachmentBuilder(transcript, { name: transcriptName })],
     allowedMentions: { parse: [] },
   });
 }
