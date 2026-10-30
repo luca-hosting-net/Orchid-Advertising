@@ -1,4 +1,4 @@
-const { ChannelType, MessageFlags, PermissionFlagsBits } = require('discord.js');
+const { ChannelType, MessageFlags, OverwriteType, PermissionFlagsBits } = require('discord.js');
 const SUPPORT_ROLE_ID = '1552819101741879366';
 const EXECUTIVE_ROLE_ID = '1552196838969573387';
 const deletionTimers = new Map();
@@ -69,7 +69,10 @@ async function closeTicket(interaction, reason) {
   await channel.permissionOverwrites.edit(ticket.ownerId, {
     SendMessages: false,
     AddReactions: false,
-  }, `Ticket closed by ${interaction.user.tag}: ${closeReason}`);
+  }, {
+    type: OverwriteType.Member,
+    reason: `Ticket closed by ${interaction.user.tag}: ${closeReason}`,
+  });
   await channel.setTopic(`Opened by ${ticket.openerText} | orchid-ticket;owner=${ticket.ownerId};claimed=${ticket.claimedId};status=closed`);
   if (!channel.name.startsWith('closed-')) {
     await channel.setName(`closed-${channel.name}`.slice(0, 100));
