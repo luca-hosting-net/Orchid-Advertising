@@ -111,7 +111,7 @@ async function requestCloseTicket(interaction, reason) {
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const requestMessage = await interaction.channel.send({
-    content: `The user that does the close request has requested to close this ticket.\n**Requested by:** <@${interaction.user.id}>\n**Reason:** ${reason.trim()}`,
+    content: `<@${ticket.ownerId}> this ticket has been requested to be closed by <@${interaction.user.id}>\n**Reason:** ${reason.trim()}`,
     components: [new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`ticket:close-request:approve:${ticket.ownerId}`)
