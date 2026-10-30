@@ -1,14 +1,19 @@
+const path = require('node:path');
 const {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
+  EmbedBuilder,
   MessageFlags,
   OverwriteType,
   PermissionFlagsBits,
 } = require('discord.js');
 const SUPPORT_ROLE_ID = '1552819101741879366';
 const EXECUTIVE_ROLE_ID = '1552196838969573387';
+const CLOSED_TICKETS_CHANNEL_ID = '1565624090142965760';
+const ASSISTANCE_BANNER = path.join(__dirname, '..', 'assets', 'assistance.png');
 const deletionTimers = new Map();
 
 function getTicketInfo(channel) {
@@ -55,6 +60,83 @@ function cleanupClosedTickets(client) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
+}
+
+async function createTranscript(channel) {
+  const messages = [];
+  let before;
+  const maxMessages = 3_000;
+  while (messages.length < maxMessages) {
+    const batch = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+    if (!batch.size) break;
+    messages.push(...batch.values());
+    before = batch.last().id;
+    if (batch.size < 100) break;
+  }
+
+  const sorted = messages.slice(0, maxMessages).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+  const transcriptMessages = sorted.map((message) => {
+    const attachments = [...message.attachments.values()].map((attachment) =>
+      `<li><a href="${escapeHtml(attachment.url)}">${escapeHtml(attachment.name || 'attachment')}</a></li>`,
+    ).join('');
+    const embeds = message.embeds.map((embed) => {
+      const text = [embed.title, embed.description].filter(Boolean).join('\n');
+      return text ? `<blockquote>${escapeHtml(text)}</blockquote>` : '';
+    }).join('');
+    const contentText = message.content || '';
+    const content = contentText
+      ? `<div class="content">${escapeHtml(contentText.slice(0, 1_000))}${contentText.length > 1_000 ? '<br><em>[Message text truncated]</em>' : ''}</div>`
+      : '';
+    return `<article><header><strong>${escapeHtml(message.author.tag)}</strong><time>${new Date(message.createdTimestamp).toISOString()}</time></header>${content}${embeds}${attachments ? `<ul>${attachments}</ul>` : ''}</article>`;
+  }).join('\n');
+  const truncated = messages.length >= maxMessages ? '<p class="note">Transcript limited to the latest 3,000 messages.</p>' : '';
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Transcript: ${escapeHtml(channel.name)}</title><style>body{font:15px system-ui,sans-serif;background:#17151a;color:#eee;margin:0;padding:24px}.wrap{max-width:900px;margin:auto}h1{color:#e5b2f1}article{background:#242127;border-radius:8px;padding:14px;margin:12px 0;overflow-wrap:anywhere}header{display:flex;justify-content:space-between;gap:16px;color:#d9b8e3}time{font-size:12px;color:#aaa}.content{white-space:pre-wrap;margin-top:8px}a{color:#9bbcff}blockquote{border-left:3px solid #b320d1;margin:8px 0;padding-left:12px;white-space:pre-wrap}.note{color:#ffc66d}</style></head><body><main class="wrap"><h1>Orchid Customs — ${escapeHtml(channel.name)}</h1>${truncated}${transcriptMessages || '<p>No messages were available for this transcript.</p>'}</main></body></html>`;
+  return Buffer.from(html, 'utf8');
+}
+
+async function sendClosureReport(interaction, ticket, closeReason, originalChannelName) {
+  const logChannel = await interaction.client.channels.fetch(CLOSED_TICKETS_CHANNEL_ID).catch(() => null);
+  if (!logChannel || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(logChannel.type)) {
+    throw new Error(`Closed-ticket log channel ${CLOSED_TICKETS_CHANNEL_ID} was not found or is not a text channel.`);
+  }
+
+  const channel = interaction.channel;
+  const transcript = await createTranscript(channel);
+  const transcriptName = `transcript-${channel.name.replace(/[^a-z0-9-]/gi, '-').slice(0, 80)}.html`;
+  const closedAt = Math.floor(Date.now() / 1000);
+  const embed = new EmbedBuilder()
+    .setColor(0x49b8e9)
+    .setTitle('Orchid Customs | Ticket Closed')
+    .setImage('attachment://assistance.png')
+    .addFields(
+      { name: 'Ticket', value: `${originalChannelName} (${channel.id})`, inline: false },
+      { name: 'Department', value: channel.parent?.name || 'Support', inline: true },
+      { name: 'Opened By', value: `<@${ticket.ownerId}>`, inline: true },
+      { name: 'Claimed By', value: ticket.claimedId === 'none' ? 'Unclaimed' : `<@${ticket.claimedId}>`, inline: true },
+      { name: 'Closed By', value: `<@${interaction.user.id}>`, inline: true },
+      { name: 'Closed', value: `<t:${closedAt}:F>`, inline: true },
+      { name: 'Original Reason', value: closeReason.slice(0, 1024) || 'No reason provided.', inline: false },
+      { name: 'Transcript', value: 'Full conversation attached below.', inline: false },
+    );
+
+  await logChannel.send({
+    embeds: [embed],
+    files: [
+      new AttachmentBuilder(ASSISTANCE_BANNER, { name: 'assistance.png' }),
+      new AttachmentBuilder(transcript, { name: transcriptName }),
+    ],
+    allowedMentions: { parse: [] },
+  });
+}
+
 async function closeTicket(interaction, reason) {
   const ticket = getTicketInfo(interaction.channel);
   if (!ticket) {
@@ -76,6 +158,7 @@ async function closeTicket(interaction, reason) {
 
   const closeReason = reason.trim();
   const channel = interaction.channel;
+  const originalChannelName = channel.name;
   await channel.permissionOverwrites.edit(ticket.ownerId, {
     SendMessages: false,
     AddReactions: false,
@@ -91,6 +174,12 @@ async function closeTicket(interaction, reason) {
     content: `🔒 Ticket closed by <@${interaction.user.id}>.\n**Reason:** ${closeReason}`,
     allowedMentions: { users: [interaction.user.id] },
   });
+
+  try {
+    await sendClosureReport(interaction, ticket, closeReason, originalChannelName);
+  } catch (error) {
+    console.error(`Could not send the closure report for ticket ${channel.id}:`, error);
+  }
 
   const confirmation = `Ticket closed. Reason: ${closeReason}`;
   await interaction.editReply({ content: `${confirmation} This ticket channel will be deleted in 5 seconds.` });
