@@ -137,6 +137,23 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
   if (!logChannel || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(logChannel.type)) {
     throw new Error(`Closed-ticket log channel ${CLOSED_TICKETS_CHANNEL_ID} was not found or is not a text channel.`);
   }
+  if (logChannel.guildId !== interaction.guildId) {
+    throw new Error(`Transcript channel ${CLOSED_TICKETS_CHANNEL_ID} is not in this server.`);
+  }
+  const botMember = interaction.guild.members.me || await interaction.guild.members.fetchMe();
+  const permissions = logChannel.permissionsFor(botMember);
+  const requiredPermissions = [
+    [PermissionFlagsBits.ViewChannel, 'View Channel'],
+    [PermissionFlagsBits.SendMessages, 'Send Messages'],
+    [PermissionFlagsBits.EmbedLinks, 'Embed Links'],
+    [PermissionFlagsBits.AttachFiles, 'Attach Files'],
+  ];
+  const missingPermissions = requiredPermissions
+    .filter(([permission]) => !permissions?.has(permission))
+    .map(([, label]) => label);
+  if (missingPermissions.length) {
+    throw new Error(`Missing permissions in transcript channel ${CLOSED_TICKETS_CHANNEL_ID}: ${missingPermissions.join(', ')}.`);
+  }
 
   const channel = interaction.channel;
   const transcriptData = await createTranscript(channel);
@@ -217,15 +234,27 @@ async function closeTicket(interaction, reason) {
     allowedMentions: { users: [interaction.user.id] },
   });
 
-  try {
-    await sendClosureReport(interaction, ticket, closeReason, originalChannelName);
-  } catch (error) {
-    console.error(`Could not send the closure report for ticket ${channel.id}:`, error);
-  }
-
   const confirmation = `Ticket closed. Reason: ${closeReason}`;
-  await interaction.editReply({ content: `${confirmation} This ticket channel will be deleted in 5 seconds.` });
-  deleteTicketLater(channel, `Closed ticket deleted: ${closeReason}`);
+  await interaction.editReply({
+    content: `${confirmation} The transcript is being sent to <#${CLOSED_TICKETS_CHANNEL_ID}>. This ticket channel will be deleted after the archive finishes.`,
+  });
+
+  const archiveTask = sendClosureReport(interaction, ticket, closeReason, originalChannelName).catch(async (error) => {
+    console.error(`Could not send the closure report for ticket ${channel.id}:`, error);
+    await interaction.followUp({
+      content: `The ticket closed, but its transcript could not be sent to <#${CLOSED_TICKETS_CHANNEL_ID}>. ${String(error.message || error).slice(0, 500)} Check that the bot can view and send messages, embed links, and attach files in that channel.`,
+      flags: MessageFlags.Ephemeral,
+    }).catch(() => {});
+  });
+  const archiveTimeout = setTimeout(() => {
+    console.error(`Ticket archive timed out for channel ${channel.id}; deleting the closed ticket anyway.`);
+    deleteTicketLater(channel, `Closed ticket deleted after archive timeout: ${closeReason}`);
+  }, 120_000);
+  archiveTimeout.unref?.();
+  archiveTask.then(() => {
+    clearTimeout(archiveTimeout);
+    deleteTicketLater(channel, `Closed ticket deleted: ${closeReason}`);
+  });
 }
 
 async function requestCloseTicket(interaction, reason) {
