@@ -21,12 +21,26 @@ function getTicketInfo(channel) {
   const marker = channel.topic.indexOf('orchid-ticket;');
   if (marker < 0) return null;
   const openerText = channel.topic.slice(0, marker).replace(/^Opened by\s*/, '').replace(/\s*\|\s*$/, '');
-  const fields = Object.fromEntries(channel.topic.slice(marker + 'orchid-ticket;'.length).split(';').map((part) => {
+  const topicFields = channel.topic.slice(marker + 'orchid-ticket;'.length);
+  const reasonMarker = topicFields.indexOf(';reason=');
+  const fieldsText = reasonMarker >= 0 ? topicFields.slice(0, reasonMarker) : topicFields;
+  const fields = Object.fromEntries(fieldsText.split(';').map((part) => {
     const separator = part.indexOf('=');
     return separator < 0 ? [part, ''] : [part.slice(0, separator), part.slice(separator + 1)];
   }));
   if (!/^\d+$/.test(fields.owner || '') || !['open', 'closed'].includes(fields.status)) return null;
-  return { ownerId: fields.owner, openerText, claimedId: fields.claimed || 'none', status: fields.status };
+  return {
+    ownerId: fields.owner,
+    openerText,
+    claimedId: fields.claimed || 'none',
+    status: fields.status,
+    openReason: reasonMarker >= 0 ? topicFields.slice(reasonMarker + ';reason='.length) : '',
+  };
+}
+
+function formatTicketTopic(ticket, status = ticket.status) {
+  const prefix = `Opened by ${ticket.openerText} | orchid-ticket;owner=${ticket.ownerId};claimed=${ticket.claimedId};status=${status};reason=`;
+  return `${prefix}${(ticket.openReason || '').slice(0, Math.max(0, 1024 - prefix.length))}`;
 }
 
 function isSupportStaff(interaction) {
@@ -73,6 +87,24 @@ async function createTranscript(channel) {
   }
 
   const sorted = messages.slice(0, maxMessages).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+  let recoveredOpenReason = '';
+  for (const message of sorted) {
+    const texts = [];
+    const collectText = (components) => {
+      for (const component of components || []) {
+        if (typeof component.content === 'string') texts.push(component.content);
+        if (Array.isArray(component.components)) collectText(component.components);
+      }
+    };
+    collectText(message.components);
+    const panelText = texts.join('\n');
+    const match = panelText.match(/\*\*Reason:\*\*\s*([\s\S]*?)(?:\n\n---\n|$)/);
+    if (match) {
+      recoveredOpenReason = match[1].replace(/^>\s?/gm, '').trim();
+      break;
+    }
+  }
+
   const transcriptMessages = sorted.map((message) => {
     const lines = [
       `[${new Date(message.createdTimestamp).toISOString()}] ${message.author.tag} (${message.author.id})`,
@@ -97,7 +129,7 @@ async function createTranscript(channel) {
     transcriptMessages || 'No messages were available for this transcript.',
     truncated,
   ].join('\n');
-  return Buffer.from(transcript, 'utf8');
+  return { file: Buffer.from(transcript, 'utf8'), openReason: recoveredOpenReason };
 }
 
 async function sendClosureReport(interaction, ticket, closeReason, originalChannelName) {
@@ -107,13 +139,13 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
   }
 
   const channel = interaction.channel;
-  const transcript = await createTranscript(channel);
+  const transcriptData = await createTranscript(channel);
+  const openReason = ticket.openReason || transcriptData.openReason;
   const transcriptName = `transcript-${channel.name.replace(/[^a-z0-9-]/gi, '-').slice(0, 80)}.txt`;
   const closedAt = Math.floor(Date.now() / 1000);
   const embed = new EmbedBuilder()
     .setColor(0x49b8e9)
     .setTitle('Orchid Customs | Ticket Closed')
-    .setImage('attachment://assistance.png')
     .addFields(
       { name: 'Ticket', value: `${originalChannelName} (${channel.id})`, inline: false },
       { name: 'Department', value: channel.parent?.name || 'Support', inline: true },
@@ -121,20 +153,30 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
       { name: 'Claimed By', value: ticket.claimedId === 'none' ? 'Unclaimed' : `<@${ticket.claimedId}>`, inline: true },
       { name: 'Closed By', value: `<@${interaction.user.id}>`, inline: true },
       { name: 'Closed', value: `<t:${closedAt}:F>`, inline: true },
-      { name: 'Original Reason', value: closeReason.slice(0, 1024) || 'No reason provided.', inline: false },
-      { name: 'Transcript', value: 'Full conversation attached below.', inline: false },
+      { name: 'Ticket Open Reason', value: openReason.slice(0, 1024) || 'Not recorded for this ticket.', inline: false },
+      { name: 'Ticket Close Reason', value: closeReason.slice(0, 1024) || 'No reason provided.', inline: false },
+      { name: 'Transcript', value: 'Preparing transcript link…', inline: false },
     );
 
   await logChannel.send({
-    embeds: [embed],
     files: [new AttachmentBuilder(ASSISTANCE_BANNER, { name: 'assistance.png' })],
     allowedMentions: { parse: [] },
   });
-  await logChannel.send({
-    content: `📄 Transcript for **${originalChannelName}** is attached below.`,
-    files: [new AttachmentBuilder(transcript, { name: transcriptName })],
+  const reportMessage = await logChannel.send({
+    embeds: [embed],
     allowedMentions: { parse: [] },
   });
+  const transcriptMessage = await logChannel.send({
+    files: [new AttachmentBuilder(transcriptData.file, { name: transcriptName }).setSpoiler()],
+    allowedMentions: { parse: [] },
+  });
+  const transcriptUrl = transcriptMessage.attachments.first()?.url;
+  if (transcriptUrl) {
+    embed.setFields(embed.data.fields.map((field) => field.name === 'Transcript'
+      ? { ...field, value: `[Open transcript](<${transcriptUrl}>)` }
+      : field));
+    await reportMessage.edit({ embeds: [embed] });
+  }
 }
 
 async function closeTicket(interaction, reason) {
@@ -166,7 +208,7 @@ async function closeTicket(interaction, reason) {
     type: OverwriteType.Member,
     reason: `Ticket closed by ${interaction.user.tag}: ${closeReason}`,
   });
-  await channel.setTopic(`Opened by ${ticket.openerText} | orchid-ticket;owner=${ticket.ownerId};claimed=${ticket.claimedId};status=closed`);
+  await channel.setTopic(formatTicketTopic(ticket, 'closed'));
   if (!channel.name.startsWith('closed-')) {
     await channel.setName(`closed-${channel.name}`.slice(0, 100));
   }
@@ -266,7 +308,8 @@ async function handle(interaction) {
       return interaction.editReply({ content: `This ticket has already been claimed by <@${ticket.claimedId}>.` });
     }
 
-    await interaction.channel.setTopic(`Opened by ${ticket.openerText} | orchid-ticket;owner=${ticket.ownerId};claimed=${interaction.user.id};status=open`);
+    ticket.claimedId = interaction.user.id;
+    await interaction.channel.setTopic(formatTicketTopic(ticket));
     await interaction.channel.send({
       content: `<@${interaction.user.id}> has claimed this ticket.`,
       allowedMentions: { users: [interaction.user.id] },
@@ -283,4 +326,4 @@ async function handle(interaction) {
   }
 }
 
-module.exports = { cleanupClosedTickets, closeTicket, getTicketInfo, handle, isSupportStaff, requestCloseTicket };
+module.exports = { cleanupClosedTickets, closeTicket, formatTicketTopic, getTicketInfo, handle, isSupportStaff, requestCloseTicket };

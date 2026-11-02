@@ -20,7 +20,7 @@ const {
   WebhookClient,
 } = require('discord.js');
 const { SeparatorSpacingSize } = require('discord-api-types/v10');
-const { getTicketInfo, handle: handleTicket } = require('./tickets');
+const { formatTicketTopic, getTicketInfo, handle: handleTicket } = require('./tickets');
 const { makeDashboardContainer } = require('../commands/dashboard');
 
 const DASHBOARD_BANNER = path.join(__dirname, '..', 'assets', 'dasboard.png');
@@ -203,7 +203,13 @@ async function createTicket(interaction, reason, categoryId = SUPPORT_CATEGORY_I
     name: ticketName(interaction.user.username, interaction.user.id),
     type: ChannelType.GuildText,
     parent: category.id,
-    topic: `Opened by ${interaction.user.username} | orchid-ticket;owner=${interaction.user.id};claimed=none;status=open`,
+    topic: formatTicketTopic({
+      openerText: interaction.user.username,
+      ownerId: interaction.user.id,
+      claimedId: 'none',
+      status: 'open',
+      openReason: reason,
+    }),
     permissionOverwrites,
     reason: `Support ticket opened by ${interaction.user.tag}`,
   });
