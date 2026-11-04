@@ -13,15 +13,19 @@ const {
 const SUPPORT_ROLE_ID = '1552819101741879366';
 const EXECUTIVE_ROLE_ID = '1552196838969573387';
 const CLOSED_TICKETS_CHANNEL_ID = '1565624090142965760';
-const ASSISTANCE_BANNER = path.join(__dirname, '..', 'assets', 'assistance.png');
+const ASSISTANCE_BANNER = path.join(__dirname, '..', 'assets', 'blackline-assistance.png');
+const FOOTER_BANNER = path.join(__dirname, '..', 'assets', 'blackline-footer.png');
 const deletionTimers = new Map();
 
 function getTicketInfo(channel) {
   if (channel?.type !== ChannelType.GuildText || !channel.topic) return null;
-  const marker = channel.topic.indexOf('orchid-ticket;');
+  const newMarker = 'blackline-ticket;';
+  const legacyMarker = 'orchid-ticket;';
+  const markerTag = channel.topic.includes(newMarker) ? newMarker : legacyMarker;
+  const marker = channel.topic.indexOf(markerTag);
   if (marker < 0) return null;
   const openerText = channel.topic.slice(0, marker).replace(/^Opened by\s*/, '').replace(/\s*\|\s*$/, '');
-  const topicFields = channel.topic.slice(marker + 'orchid-ticket;'.length);
+  const topicFields = channel.topic.slice(marker + markerTag.length);
   const reasonMarker = topicFields.indexOf(';reason=');
   const fieldsText = reasonMarker >= 0 ? topicFields.slice(0, reasonMarker) : topicFields;
   const fields = Object.fromEntries(fieldsText.split(';').map((part) => {
@@ -39,7 +43,7 @@ function getTicketInfo(channel) {
 }
 
 function formatTicketTopic(ticket, status = ticket.status) {
-  const prefix = `Opened by ${ticket.openerText} | orchid-ticket;owner=${ticket.ownerId};claimed=${ticket.claimedId};status=${status};reason=`;
+  const prefix = `Opened by ${ticket.openerText} | blackline-ticket;owner=${ticket.ownerId};claimed=${ticket.claimedId};status=${status};reason=`;
   return `${prefix}${(ticket.openReason || '').slice(0, Math.max(0, 1024 - prefix.length))}`;
 }
 
@@ -122,7 +126,7 @@ async function createTranscript(channel) {
   }).join('\n\n────────────────────────────────────────\n\n');
   const truncated = messages.length >= maxMessages ? '\n\n[Transcript limited to the latest 3,000 messages.]' : '';
   const transcript = [
-    'ORCHID CUSTOMS — TICKET TRANSCRIPT',
+    'BLACKLINE CUSTOMS — TICKET TRANSCRIPT',
     `Channel: ${channel.name} (${channel.id})`,
     `Generated: ${new Date().toISOString()}`,
     '',
@@ -162,7 +166,8 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
   const closedAt = Math.floor(Date.now() / 1000);
   const embed = new EmbedBuilder()
     .setColor(0x49b8e9)
-    .setTitle('Orchid Customs | Ticket Closed')
+    .setTitle('Blackline Customs | Ticket Closed')
+    .setImage('attachment://blackline-footer.png')
     .addFields(
       { name: 'Ticket', value: `${originalChannelName} (${channel.id})`, inline: false },
       { name: 'Department', value: channel.parent?.name || 'Support', inline: true },
@@ -176,11 +181,12 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
     );
 
   await logChannel.send({
-    files: [new AttachmentBuilder(ASSISTANCE_BANNER, { name: 'assistance.png' })],
+    files: [new AttachmentBuilder(ASSISTANCE_BANNER, { name: 'blackline-assistance.png' })],
     allowedMentions: { parse: [] },
   });
   const reportMessage = await logChannel.send({
     embeds: [embed],
+    files: [new AttachmentBuilder(FOOTER_BANNER, { name: 'blackline-footer.png' })],
     allowedMentions: { parse: [] },
   });
   const transcriptMessage = await logChannel.send({
@@ -199,7 +205,7 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
 async function closeTicket(interaction, reason) {
   const ticket = getTicketInfo(interaction.channel);
   if (!ticket) {
-    return interaction.reply({ content: 'This command only works inside an Orchid support ticket.', flags: MessageFlags.Ephemeral });
+    return interaction.reply({ content: 'This command only works inside a Blackline Customs support ticket.', flags: MessageFlags.Ephemeral });
   }
   if (interaction.user.id !== ticket.ownerId && !isSupportStaff(interaction)) {
     return interaction.reply({ content: 'Only the ticket opener or support staff can close this ticket.', flags: MessageFlags.Ephemeral });
@@ -260,7 +266,7 @@ async function closeTicket(interaction, reason) {
 async function requestCloseTicket(interaction, reason) {
   const ticket = getTicketInfo(interaction.channel);
   if (!ticket) {
-    return interaction.reply({ content: 'This command only works inside an Orchid support ticket.', flags: MessageFlags.Ephemeral });
+    return interaction.reply({ content: 'This command only works inside a Blackline Customs support ticket.', flags: MessageFlags.Ephemeral });
   }
   if (interaction.user.id !== ticket.ownerId && !isSupportStaff(interaction)) {
     return interaction.reply({ content: 'Only the ticket opener or support staff can request to close this ticket.', flags: MessageFlags.Ephemeral });

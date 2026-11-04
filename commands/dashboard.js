@@ -12,21 +12,22 @@ const {
 } = require('@discordjs/builders');
 const { SeparatorSpacingSize } = require('discord-api-types/v10');
 
-const dashboardBanner = path.join(__dirname, '..', 'assets', 'dasboard.png');
+const dashboardBanner = path.join(__dirname, '..', 'assets', 'blackline-dashboard.png');
+const footerBanner = path.join(__dirname, '..', 'assets', 'blackline-footer.png');
 
 function makeDashboardContainer() {
   const container = new ContainerBuilder()
     .setAccentColor(0xb320d1)
     .addMediaGalleryComponents(
       new MediaGalleryBuilder().addItems(
-        new MediaGalleryItemBuilder().setURL('attachment://orchid-dashboard.png'),
+        new MediaGalleryItemBuilder().setURL('attachment://blackline-dashboard.png'),
       ),
     )
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        '# Orchid Customs\n' +
-        'Welcome to **Orchid Customs**, creating a immense experience to your custom creations. We were founded on **August 26th 2026** and aim to provide high-quality, affordable products for all clients. Not only orders, but fun events and giveaways for all of our community.\n\n' +
+        '# Blackline Customs\n' +
+        'Welcome to **Blackline Customs**, creating a unique experience for your custom creations. We aim to provide high-quality, affordable products for all clients, along with fun events and giveaways for our community.\n\n' +
         'Explore our Guidelines and Terms Of Service.',
       ),
     );
@@ -50,7 +51,7 @@ function makeDashboardContainer() {
     ...linkButtons,
   ));
 
-  return container
+  container
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addActionRowComponents(new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
@@ -62,14 +63,20 @@ function makeDashboardContainer() {
         ),
     ))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Orchid Management • Creativity, blooming'));
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Blackline Customs'));
+  container.addMediaGalleryComponents(
+    new MediaGalleryBuilder().addItems(
+      new MediaGalleryItemBuilder().setURL('attachment://blackline-footer.png'),
+    ),
+  );
+  return container;
 }
 
 module.exports = {
   makeDashboardContainer,
   data: new SlashCommandBuilder()
     .setName('dashboard')
-    .setDescription('Post the Orchid Management dashboard.')
+    .setDescription('Post the Blackline Customs dashboard.')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction) {
@@ -79,7 +86,10 @@ module.exports = {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     await interaction.channel.send({
-      files: [new AttachmentBuilder(dashboardBanner, { name: 'orchid-dashboard.png' })],
+      files: [
+        new AttachmentBuilder(dashboardBanner, { name: 'blackline-dashboard.png' }),
+        new AttachmentBuilder(footerBanner, { name: 'blackline-footer.png' }),
+      ],
       components: [makeDashboardContainer()],
       flags: MessageFlags.IsComponentsV2,
     });

@@ -23,9 +23,11 @@ const { SeparatorSpacingSize } = require('discord-api-types/v10');
 const { formatTicketTopic, getTicketInfo, handle: handleTicket } = require('./tickets');
 const { makeDashboardContainer } = require('../commands/dashboard');
 
-const DASHBOARD_BANNER = path.join(__dirname, '..', 'assets', 'dasboard.png');
-const MARKETPLACE_BANNER = path.join(__dirname, '..', 'assets', 'portfolio (2).png');
-const MARKETPLACE_FOOTER = path.join(__dirname, '..', 'assets', 'marketplace-footer.png');
+const DASHBOARD_BANNER = path.join(__dirname, '..', 'assets', 'blackline-dashboard.png');
+const ASSISTANCE_BANNER = path.join(__dirname, '..', 'assets', 'blackline-assistance.png');
+const SERVICES_BANNER = path.join(__dirname, '..', 'assets', 'blackline-services.png');
+const MARKETPLACE_BANNER = path.join(__dirname, '..', 'assets', 'blackline-marketplace.png');
+const FOOTER_BANNER = path.join(__dirname, '..', 'assets', 'blackline-footer.png');
 const SUPPORT_CATEGORY_ID = '1562205751814922290';
 const SUPPORT_ROLE_ID = '1552819101741879366';
 const EXECUTIVE_ROLE_ID = '1552196838969573387';
@@ -35,7 +37,7 @@ const faqResponseTokens = new Map();
 function marketplacePanel(category = 'ads') {
   const base = new ContainerBuilder()
     .setAccentColor(0xb320d1)
-    .addMediaGalleryComponents(panelImage('marketplace-banner.png'))
+    .addMediaGalleryComponents(panelImage('blackline-services.png'))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
 
   const descriptions = {
@@ -55,13 +57,15 @@ function marketplacePanel(category = 'ads') {
       ));
   }
 
-  return base.addMediaGalleryComponents(panelImage('marketplace-footer.png'));
+  return base
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
+    .addMediaGalleryComponents(panelImage('blackline-footer.png'));
 }
 
 function makeMarketplacePanel() {
   return new ContainerBuilder()
     .setAccentColor(0x29252b)
-    .addMediaGalleryComponents(panelImage('marketplace-banner.png'))
+    .addMediaGalleryComponents(panelImage('blackline-marketplace.png'))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       '# Marketplace\n' +
@@ -82,17 +86,17 @@ function makeMarketplacePanel() {
       new ButtonBuilder().setCustomId('marketplace:claim').setLabel('Claim Purchase').setEmoji('🎁').setStyle(ButtonStyle.Primary),
     ))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
-    .addMediaGalleryComponents(panelImage('marketplace-footer.png'));
+    .addMediaGalleryComponents(panelImage('blackline-footer.png'));
 }
 
-function marketplaceFiles() {
+function marketplaceFiles(banner = MARKETPLACE_BANNER) {
   return [
-    new AttachmentBuilder(MARKETPLACE_BANNER, { name: 'marketplace-banner.png' }),
-    new AttachmentBuilder(MARKETPLACE_FOOTER, { name: 'marketplace-footer.png' }),
+    new AttachmentBuilder(banner, { name: banner === SERVICES_BANNER ? 'blackline-services.png' : 'blackline-marketplace.png' }),
+    new AttachmentBuilder(FOOTER_BANNER, { name: 'blackline-footer.png' }),
   ];
 }
 
-function panelImage(filename = 'orchid-dashboard.png') {
+function panelImage(filename = 'blackline-dashboard.png') {
   return new MediaGalleryBuilder().addItems(
     new MediaGalleryItemBuilder().setURL(`attachment://${filename}`),
   );
@@ -101,7 +105,7 @@ function panelImage(filename = 'orchid-dashboard.png') {
 function createFaqPanel() {
   return new ContainerBuilder()
     .setAccentColor(0xb320d1)
-    .addMediaGalleryComponents(panelImage())
+    .addMediaGalleryComponents(panelImage('blackline-assistance.png'))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       '# Frequently Asked Questions\n' +
@@ -112,7 +116,7 @@ function createFaqPanel() {
       '**A:** Spamming your designer will get your order closed — no refunds. We suggest opening a ticket and a creative supervisor will assist you.\n\n' +
       '---\n' +
       '**Q:** A member of your community needs to be blacklisted, can I report them?\n' +
-      '**A:** We don’t accept reports outside of our server unless Orchid Customs is specifically included or a member of our staff is involved in breaking ToS.\n\n' +
+      '**A:** We don’t accept reports outside of our server unless Blackline Customs is specifically included or a member of our staff is involved in breaking ToS.\n\n' +
       '---\n' +
       '**Q:** Are you guys accepting applications for designers and support?\n' +
       '**A:** We are actively looking for applications for designers and Support Staff.',
@@ -126,7 +130,9 @@ function createFaqPanel() {
         .setCustomId('support:cancel')
         .setLabel('Cancel Support Request')
         .setStyle(ButtonStyle.Secondary),
-    ));
+    ))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
+    .addMediaGalleryComponents(panelImage('blackline-footer.png'));
 }
 
 function makeTicketModal() {
@@ -134,7 +140,7 @@ function makeTicketModal() {
     .setCustomId('support:submit')
     .setTitle('Open a Support Ticket')
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      '⚠️ This form will be submitted to Orchid Management. Do not share passwords or other sensitive information.',
+      '⚠️ This form will be submitted to Blackline Customs. Do not share passwords or other sensitive information.',
     ))
     .addLabelComponents(new LabelBuilder()
       .setLabel('Reason for opening this ticket')
@@ -218,7 +224,7 @@ async function createTicket(interaction, reason, categoryId = SUPPORT_CATEGORY_I
   const createdAt = `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:D>`;
   const ticketPanel = new ContainerBuilder()
     .setAccentColor(0x1f8b75)
-    .addMediaGalleryComponents(panelImage())
+    .addMediaGalleryComponents(panelImage('blackline-assistance.png'))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       `${roleTag}# ${interaction.guild.name} Support\n` +
       `## ${ticketType} Ticket\n` +
@@ -242,11 +248,16 @@ async function createTicket(interaction, reason, categoryId = SUPPORT_CATEGORY_I
         .setCustomId(`ticket:close:${interaction.user.id}`)
         .setLabel('Close')
         .setStyle(ButtonStyle.Danger),
-    ));
+    ))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
+    .addMediaGalleryComponents(panelImage('blackline-footer.png'));
 
   try {
     await channel.send({
-      files: [new AttachmentBuilder(DASHBOARD_BANNER, { name: 'orchid-dashboard.png' })],
+      files: [
+        new AttachmentBuilder(ASSISTANCE_BANNER, { name: 'blackline-assistance.png' }),
+        new AttachmentBuilder(FOOTER_BANNER, { name: 'blackline-footer.png' }),
+      ],
       components: [ticketPanel],
       flags: MessageFlags.IsComponentsV2,
       allowedMentions: { roles: [supportRole.id], users: [] },
@@ -262,7 +273,7 @@ async function createTicket(interaction, reason, categoryId = SUPPORT_CATEGORY_I
 async function handle(interaction) {
   if (interaction.isStringSelectMenu() && interaction.customId === 'marketplace:category') {
     return interaction.reply({
-      files: marketplaceFiles(),
+      files: marketplaceFiles(SERVICES_BANNER),
       components: [marketplacePanel(interaction.values[0])],
       flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
     });
@@ -289,7 +300,10 @@ async function handle(interaction) {
     if (interaction.customId === 'support:open') {
       const faq = createFaqPanel();
       await interaction.reply({
-        files: [new AttachmentBuilder(DASHBOARD_BANNER, { name: 'orchid-dashboard.png' })],
+        files: [
+          new AttachmentBuilder(DASHBOARD_BANNER, { name: 'blackline-dashboard.png' }),
+          new AttachmentBuilder(FOOTER_BANNER, { name: 'blackline-footer.png' }),
+        ],
         components: [faq],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
@@ -321,13 +335,13 @@ async function handle(interaction) {
           console.warn('Could not delete the original FAQ response; restoring the dashboard view.', error);
         }
       }
-      const attachments = interaction.message.attachments.map((attachment) => ({
-        id: attachment.id,
-        filename: attachment.name,
-      }));
       try {
         return await interaction.editReply({
-          attachments,
+          attachments: [],
+          files: [
+            new AttachmentBuilder(DASHBOARD_BANNER, { name: 'blackline-dashboard.png' }),
+            new AttachmentBuilder(FOOTER_BANNER, { name: 'blackline-footer.png' }),
+          ],
           components: [makeDashboardContainer()],
         });
       } catch {

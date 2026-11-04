@@ -1,10 +1,14 @@
-const { MessageFlags, ButtonStyle } = require('discord.js');
+const path = require('node:path');
+const { AttachmentBuilder, MessageFlags, ButtonStyle } = require('discord.js');
 const {
   ActionRowBuilder,
   ButtonBuilder,
   ContainerBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
   TextDisplayBuilder,
 } = require('@discordjs/builders');
+const FOOTER_BANNER = path.join(__dirname, '..', 'assets', 'blackline-footer.png');
 
 const pages = {
   guidelines: {
@@ -17,7 +21,7 @@ const pages = {
   },
   'terms-of-service': {
     title: 'Terms of Services',
-    description: 'When opening an order or purchasing a course, you automatically agree to all agreements and Terms of Services set by Pulse Customs. Ensure you are up to date with all of these terms before opening an order or purchasing a course.',
+    description: 'When opening an order or purchasing a course, you automatically agree to all agreements and Terms of Service set by Blackline Customs. Please read and follow these terms before opening an order or purchasing a course.',
     url: 'https://docs.google.com/document/d/1PZ8fZfptWuiSq58_Tb_w64GVOB9Y0iI0IIARtq8h4lg/edit?usp=sharing',
   },
 };
@@ -44,9 +48,13 @@ async function handle(interaction) {
   }
 
   container
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Orchid Management • Creativity, blooming'));
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Blackline Customs'))
+    .addMediaGalleryComponents(new MediaGalleryBuilder().addItems(
+      new MediaGalleryItemBuilder().setURL('attachment://blackline-footer.png'),
+    ));
 
   return interaction.reply({
+    files: [new AttachmentBuilder(FOOTER_BANNER, { name: 'blackline-footer.png' })],
     components: [container],
     flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
   });

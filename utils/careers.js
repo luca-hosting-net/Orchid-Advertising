@@ -19,14 +19,21 @@ const {
 } = require('discord.js');
 const { SeparatorSpacingSize } = require('discord-api-types/v10');
 
-const CAREERS_BANNER = path.join(__dirname, '..', 'assets', 'careers.png');
+const APPLICATIONS_BANNER = path.join(__dirname, '..', 'assets', 'blackline-applications.png');
+const FOOTER_BANNER = path.join(__dirname, '..', 'assets', 'blackline-footer.png');
 const APPLICATION_CHANNEL_ID = '1561539883569512578';
 const EXECUTIVE_BOARD_ROLE_ID = '1552196838969573387';
 const applicationsInProgress = new Set();
 
 function careerImage() {
   return new MediaGalleryBuilder().addItems(
-    new MediaGalleryItemBuilder().setURL('attachment://orchid-careers.png'),
+    new MediaGalleryItemBuilder().setURL('attachment://blackline-applications.png'),
+  );
+}
+
+function footerImage() {
+  return new MediaGalleryBuilder().addItems(
+    new MediaGalleryItemBuilder().setURL('attachment://blackline-footer.png'),
   );
 }
 
@@ -37,7 +44,7 @@ function makeCareersPanel() {
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       '# Careers\n' +
-      'Welcome to **Orchid Customs** careers. You can apply for positions in our Creative Department and Support Department when applications are open.\n\n' +
+      'Welcome to **Blackline Customs** careers. You can apply for positions in our Creative Department and Support Department when applications are open.\n\n' +
       '## Requirements\n' +
       '• Past experience in designing or support.\n' +
       '• Professionalism and activity.\n' +
@@ -58,7 +65,8 @@ function makeCareersPanel() {
         .setStyle(ButtonStyle.Secondary),
     ))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Orchid Management • Careers'));
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Blackline Customs • Careers'))
+    .addMediaGalleryComponents(footerImage());
 }
 
 function makeDesignerModal() {
@@ -100,7 +108,7 @@ function makeDesignerModal() {
         .setRequired(true)
         .setMaxLength(1200)))
     .addLabelComponents(new LabelBuilder()
-      .setLabel('Why do you want to work at Orchid Customs?')
+      .setLabel('Why do you want to work at Blackline Customs?')
       .setDescription('Tell us why you would be a good fit.')
       .setTextInputComponent(new TextInputBuilder()
         .setCustomId('motivation')
@@ -146,6 +154,7 @@ function reviewContainer(data, samples) {
 
   return new ContainerBuilder()
     .setAccentColor(0x1f8b75)
+    .addMediaGalleryComponents(careerImage())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       `<@&${EXECUTIVE_BOARD_ROLE_ID}>\n` +
       '# New Application\n' +
@@ -186,7 +195,9 @@ function reviewContainer(data, samples) {
         .setCustomId(`application:deny:${data.user.id}`)
         .setLabel('Deny')
         .setStyle(ButtonStyle.Danger),
-    ));
+    ))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
+    .addMediaGalleryComponents(footerImage());
 }
 
 function getRoleIds(interaction) {
@@ -227,6 +238,10 @@ async function submitApplication(interaction) {
   try {
     await channel.send({
       components: [panel],
+      files: [
+        new AttachmentBuilder(APPLICATIONS_BANNER, { name: 'blackline-applications.png' }),
+        new AttachmentBuilder(FOOTER_BANNER, { name: 'blackline-footer.png' }),
+      ],
       flags: MessageFlags.IsComponentsV2,
       allowedMentions: { roles: [executiveRole.id], users: [] },
     });
@@ -273,8 +288,8 @@ async function handleDecision(interaction) {
     try {
       const applicant = await interaction.client.users.fetch(applicantId);
       await applicant.send(accepted
-        ? 'Your application for Orchid Customs has been accepted, congratulations!'
-        : 'Unfortunately your application for Orchid Customs has been denied. Please apply again in 3 hours.');
+        ? 'Your application for Blackline Customs has been accepted, congratulations!'
+        : 'Unfortunately your application for Blackline Customs has been denied. Please apply again in 3 hours.');
       return interaction.followUp({ content: `Application ${accepted ? 'accepted' : 'denied'} and the applicant was notified.`, flags: MessageFlags.Ephemeral });
     } catch (error) {
       console.warn(`Application decision was recorded, but the applicant ${applicantId} could not be DM'd:`, error);
@@ -289,7 +304,10 @@ async function handle(interaction) {
   if (interaction.isButton()) {
     if (interaction.customId === 'careers:open') {
       return interaction.reply({
-        files: [new AttachmentBuilder(CAREERS_BANNER, { name: 'orchid-careers.png' })],
+        files: [
+          new AttachmentBuilder(APPLICATIONS_BANNER, { name: 'blackline-applications.png' }),
+          new AttachmentBuilder(FOOTER_BANNER, { name: 'blackline-footer.png' }),
+        ],
         components: [makeCareersPanel()],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
