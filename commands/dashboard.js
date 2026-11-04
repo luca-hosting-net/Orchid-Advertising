@@ -17,7 +17,6 @@ const footerBanner = path.join(__dirname, '..', 'assets', 'blackline-footer.png'
 
 function makeDashboardContainer() {
   const container = new ContainerBuilder()
-    .setAccentColor(0xb320d1)
     .addMediaGalleryComponents(
       new MediaGalleryBuilder().addItems(
         new MediaGalleryItemBuilder().setURL('attachment://blackline-dashboard.png'),

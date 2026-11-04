@@ -14,7 +14,6 @@ module.exports = {
     }
 
     const panel = new EmbedBuilder()
-      .setColor(0x8b5cf6)
       .setTitle('Server verification')
       .setDescription('Press the button below to complete a quick CAPTCHA and unlock the server.')
       .setImage('attachment://blackline-footer.png');

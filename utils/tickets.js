@@ -165,7 +165,6 @@ async function sendClosureReport(interaction, ticket, closeReason, originalChann
   const transcriptName = `transcript-${channel.name.replace(/[^a-z0-9-]/gi, '-').slice(0, 80)}.txt`;
   const closedAt = Math.floor(Date.now() / 1000);
   const embed = new EmbedBuilder()
-    .setColor(0x49b8e9)
     .setTitle('Blackline Customs | Ticket Closed')
     .setImage('attachment://blackline-footer.png')
     .addFields(

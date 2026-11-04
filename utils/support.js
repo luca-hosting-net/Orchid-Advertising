@@ -36,7 +36,6 @@ const faqResponseTokens = new Map();
 
 function marketplacePanel(category = 'ads') {
   const base = new ContainerBuilder()
-    .setAccentColor(0xb320d1)
     .addMediaGalleryComponents(panelImage('blackline-services.png'))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
 
@@ -64,7 +63,6 @@ function marketplacePanel(category = 'ads') {
 
 function makeMarketplacePanel() {
   return new ContainerBuilder()
-    .setAccentColor(0x29252b)
     .addMediaGalleryComponents(panelImage('blackline-marketplace.png'))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -104,7 +102,6 @@ function panelImage(filename = 'blackline-dashboard.png') {
 
 function createFaqPanel() {
   return new ContainerBuilder()
-    .setAccentColor(0xb320d1)
     .addMediaGalleryComponents(panelImage('blackline-assistance.png'))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -223,7 +220,6 @@ async function createTicket(interaction, reason, categoryId = SUPPORT_CATEGORY_I
   const roleTag = `<@&${supportRole.id}>\n`;
   const createdAt = `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:D>`;
   const ticketPanel = new ContainerBuilder()
-    .setAccentColor(0x1f8b75)
     .addMediaGalleryComponents(panelImage('blackline-assistance.png'))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       `${roleTag}# ${interaction.guild.name} Support\n` +

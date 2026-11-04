@@ -35,7 +35,6 @@ async function handle(interaction) {
   }
 
   const container = new ContainerBuilder()
-    .setAccentColor(0xb320d1)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${page.title}\n\n${page.description}`));
 
   if (page.url) {

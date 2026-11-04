@@ -39,7 +39,6 @@ function footerImage() {
 
 function makeCareersPanel() {
   const container = new ContainerBuilder()
-    .setAccentColor(0xb320d1)
     .addMediaGalleryComponents(careerImage())
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -153,7 +152,6 @@ function reviewContainer(data, samples) {
   ));
 
   return new ContainerBuilder()
-    .setAccentColor(0x1f8b75)
     .addMediaGalleryComponents(careerImage())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       `<@&${EXECUTIVE_BOARD_ROLE_ID}>\n` +
